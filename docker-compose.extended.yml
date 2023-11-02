@@ -9,10 +9,9 @@ volumes:
 services:
 
   nginx:
-    container_name: ${NGINX_CONTAINER_NAME}
-    build:
-      context: nginx/
-      dockerfile: Dockerfile
+    container_name: nginx
+    image: ckan-docker-nginx
+      
     networks:
       - webnet
       - ckannet
@@ -20,22 +19,17 @@ services:
       - ckan
           #condition: service_healthy
     ports:
-      - "0.0.0.0:${NGINX_SSLPORT_HOST}:${NGINX_SSLPORT}"
+      - "0.0.0.0:8443:443"
     
   ckan:
-    container_name: ${CKAN_CONTAINER_NAME}
-    build:
-      context: ckan/
-      dockerfile: Dockerfile
-      args:
-        - TZ=${TZ}
+    container_name: ckan
+    image: ckan-docker-ckan
     networks:
       - ckannet
       - dbnet
       - solrnet
       - redisnet
-    env_file:
-      - .env
+    
     depends_on:
       - db
         #condition: service_healthy
@@ -50,42 +44,42 @@ services:
       test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:5000"]
     
   datapusher:
-    container_name: ${DATAPUSHER_CONTAINER_NAME}
+    container_name: datapusher
     networks:
       - ckannet
       - dbnet
-    image: ckan/ckan-base-datapusher:${DATAPUSHER_VERSION}
+    image: ckan/ckan-base-datapusher:0.0.20
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:8800"]
 
   db:
-    container_name: ${POSTGRESQL_CONTAINER_NAME}
-    build:
-      context: postgresql/
+    container_name: db
+    image: ckan-docker-db 
+
     networks:
       - dbnet
     environment:
-      - POSTGRES_USER
-      - POSTGRES_PASSWORD
-      - POSTGRES_DB
-      - CKAN_DB_USER
-      - CKAN_DB_PASSWORD
-      - CKAN_DB
-      - DATASTORE_READONLY_USER
-      - DATASTORE_READONLY_PASSWORD
-      - DATASTORE_DB
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+      - CKAN_DB_USER=ckandbuser
+      - CKAN_DB_PASSWORD=ckandbpassword
+      - CKAN_DB=ckandb
+      - DATASTORE_READONLY_USER=datastore_ro
+      - DATASTORE_READONLY_PASSWORD=datastore
+      - DATASTORE_DB=datastore
     volumes:
       - pg_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"]
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]
      
   solr:
-    container_name: ${SOLR_CONTAINER_NAME}
+    container_name: solr
     networks:
       - solrnet
-    image: ckan/ckan-solr:${SOLR_IMAGE_VERSION}
+    image: ckan/ckan-solr:2.10-solr9
     volumes:
       - solr_data:/var/solr
     restart: unless-stopped
@@ -93,8 +87,8 @@ services:
       test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:8983/solr/"]
 
   redis:
-    container_name: ${REDIS_CONTAINER_NAME}
-    image: redis:${REDIS_VERSION}
+    container_name: redis
+    image: redis:6
     networks:
       - redisnet
     restart: unless-stopped
